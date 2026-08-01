@@ -120,7 +120,7 @@ async def lifespan(app: FastAPI):
     yield
     mqtt_task.cancel()
 
-app = FastAPI(title="EcoGrid-Link API", lifespan=lifespan)
+app = FastAPI(title="EcoGrid-Link API", lifespan=lifespan, root_path="/api", openapi_url="/openapi.json", docs_utl="/docs")
 
 # 4. Endpoints de la API REST
 @app.get("/")
