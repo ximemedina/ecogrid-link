@@ -2,6 +2,8 @@
 
 Sistema telemático en la nube para el monitoreo y balanceo inteligente de microrredes de energía renovable comunitaria (Agenda 2030: ODS 7 y 11).
 
+> 📘 ¿Primera vez con el proyecto? Sigue **[GUIA_DE_USO.md](GUIA_DE_USO.md)** — tutorial paso a paso para levantar el stack y entrar a la API, phpMyAdmin y Grafana.
+
 ## 🔧 Estado actual (2026-08-04)
 
 Backend e infraestructura (Integrante 1) listos. Ya está funcionando de punta a punta: MQTT → backend → MySQL → detección de sobrecarga → comando de control. Todo probado localmente con `docker compose up -d --build`.
@@ -171,7 +173,7 @@ Edita `config.h` con tu WiFi, la IP (o host de ngrok) del broker MQTT y el `NODE
 **4. Registrar el nodo** en el backend antes de la demo, para que aparezca en Grafana/phpMyAdmin. La maqueta tiene 4 nodos físicos (`database/schema.sql` ya trae estos 4 como semilla); registra el que corresponda a esta placa, por ejemplo:
 ```bash
 curl -X POST http://localhost/api/nodos -H "Content-Type: application/json" \
-  -d '{"id_nodo": "esp32_maqueta_casa1", "zona": "Casa 1", "tipo_nodo": "consumo_no_prioritario", "limite_alerta_watts": 50}'
+  -d '{"id_nodo": "casa1", "zona": "Casa 1", "tipo_nodo": "consumo_no_prioritario", "limite_alerta_watts": 50}'
 ```
 Hospital y bomberos deben registrarse como `"tipo_nodo": "consumo_prioritario"` — el backend nunca les envía la orden de desconexión, sin importar cuánta potencia reporten.
 

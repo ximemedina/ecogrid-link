@@ -18,13 +18,13 @@
 // Debe coincidir con el id_nodo que se registre en la tabla `nodos`
 // (vía POST /api/nodos o phpMyAdmin). La maqueta tiene 4 nodos físicos —
 // usa el que corresponda a esta placa:
-//   "esp32_maqueta_hospital"  (consumo_prioritario, nunca se desconecta)
-//   "esp32_maqueta_bomberos"  (consumo_prioritario, nunca se desconecta)
-//   "esp32_maqueta_casa1"     (consumo_no_prioritario, se desconecta si hay sobrecarga)
-//   "esp32_maqueta_casa2"     (consumo_no_prioritario, se desconecta si hay sobrecarga)
+//   "hospital"  (consumo_prioritario, nunca se desconecta)
+//   "bomberos"  (consumo_prioritario, nunca se desconecta)
+//   "casa1"     (consumo_no_prioritario, se desconecta si hay sobrecarga)
+//   "casa2"     (consumo_no_prioritario, se desconecta si hay sobrecarga)
 // El backend solo envía la orden de desconexión al nodo que reportó la
 // sobrecarga, y únicamente si su tipo_nodo es consumo_no_prioritario.
-#define NODE_ID "esp32_maqueta_casa1"
+#define NODE_ID "casa1"
 
 // --- Hardware ---
 #define PIN_ACTUADOR 2   // Pin del relevador/LED que representa la carga controlada

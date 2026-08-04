@@ -46,8 +46,8 @@ CREATE TABLE IF NOT EXISTS historico_mediciones (
 -- si hay sobrecarga). Útil para ver algo en Grafana/phpMyAdmin sin esperar
 -- a que el ESP32 o el simulador empiecen a publicar.
 INSERT INTO nodos (id_nodo, zona, tipo_nodo, limite_alerta_watts) VALUES
-    ('esp32_maqueta_hospital', 'Hospital', 'consumo_prioritario', 100.0),
-    ('esp32_maqueta_bomberos', 'Estación de Bomberos', 'consumo_prioritario', 100.0),
-    ('esp32_maqueta_casa1', 'Casa 1', 'consumo_no_prioritario', 50.0),
-    ('esp32_maqueta_casa2', 'Casa 2', 'consumo_no_prioritario', 50.0)
+    ('hospital', 'Hospital', 'consumo_prioritario', 100.0),
+    ('bomberos', 'Bomberos', 'consumo_prioritario', 100.0),
+    ('casa1', 'Casa 1', 'consumo_no_prioritario', 50.0),
+    ('casa2', 'Casa 2', 'consumo_no_prioritario', 50.0)
 ON DUPLICATE KEY UPDATE zona = VALUES(zona);
