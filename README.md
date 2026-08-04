@@ -2,6 +2,28 @@
 
 Sistema telemático en la nube para el monitoreo y balanceo inteligente de microrredes de energía renovable comunitaria (Agenda 2030: ODS 7 y 11).
 
+## 🔧 Estado actual (2026-08-04)
+
+Backend e infraestructura (Integrante 1) listos. Ya está funcionando de punta a punta: MQTT → backend → MySQL → detección de sobrecarga → comando de control. Todo probado localmente con `docker compose up -d --build`.
+
+**Para levantarlo en su máquina:**
+
+```bash
+git clone https://github.com/ximemedina/ecogrid-link.git
+cd ecogrid-link
+cp .env.example .env
+docker compose up -d --build
+```
+
+**Servicios y accesos:**
+
+- API: http://localhost/api/ — Docs: http://localhost/api/docs
+- phpMyAdmin: http://localhost:8080 (Integrante 2 — las tablas `nodos` y `historico_mediciones` ya se crean automáticamente al levantar el backend)
+- Grafana: http://localhost:3000 o http://localhost/dashboard/ (usuario/contraseña en `.env`, ya conectable a MySQL con host `mysql`, puerto `3306`, base `ecogrid_link_db`)
+- MQTT (Integrante 3 / ESP32): `localhost:1883`, tópicos `microrred/telemetria` (publicar) y `microrred/control` (escuchar)
+
+Cualquier duda, avisen en el chat del equipo.
+
 ## Estructura de carpetas
 
 ```
