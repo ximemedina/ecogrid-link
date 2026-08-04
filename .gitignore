@@ -4,3 +4,4 @@ mosquitto_log/
 __pycache__/
 *.pyc
 .env
+firmware/**/config.h

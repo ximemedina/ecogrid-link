@@ -1,0 +1,26 @@
+#pragma once
+
+// Copia este archivo a "config.h" (en la misma carpeta) y rellena tus valores.
+// "config.h" NO se sube a GitHub (ver .gitignore) porque contiene tu contraseña de WiFi.
+
+// --- WiFi ---
+#define WIFI_SSID "TU_RED_WIFI"
+#define WIFI_PASSWORD "TU_PASSWORD"
+
+// --- MQTT ---
+// Si el broker corre en la laptop del Integrante 1 y estás en la misma red,
+// usa su IP local (ej. 192.168.1.100). Si te conectas por internet, usa el
+// host:puerto que te da el túnel de ngrok (ver README.md > Firmware ESP32).
+#define MQTT_BROKER "192.168.1.100"
+#define MQTT_PORT 1883
+
+// --- Identidad de este nodo ---
+// Debe coincidir con el id_nodo que se registre en la tabla `nodos`
+// (vía POST /api/nodos o phpMyAdmin). El backend envía la orden de
+// desconexión al nodo "esp32_maqueta_luminaria" cuando detecta sobrecarga
+// (es la carga no prioritaria) — si esta placa es esa luminaria, usa ese id.
+#define NODE_ID "esp32_maqueta_luminaria"
+
+// --- Hardware ---
+#define PIN_ACTUADOR 2   // Pin del relevador/LED que representa la carga controlada
+#define INTERVALO_ENVIO_MS 3000 // Cada cuánto se publica una lectura de telemetría

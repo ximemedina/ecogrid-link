@@ -22,6 +22,8 @@ docker compose up -d --build
 - Grafana: http://localhost:3000 o http://localhost/dashboard/ (usuario/contraseña en `.env`, ya conectable a MySQL con host `mysql`, puerto `3306`, base `ecogrid_link_db`)
 - MQTT (Integrante 3 / ESP32): `localhost:1883`, tópicos `microrred/telemetria` (publicar) y `microrred/control` (escuchar)
 
+También agregué una base de firmware para el ESP32 en `firmware/ecogrid_node/` (WiFi + sensor INA219 + MQTT + desconexión de carga), lista para que Integrante 3 la ajuste a su cableado — ver la sección "Firmware ESP32" más abajo.
+
 Cualquier duda, avisen en el chat del equipo.
 
 ## Estructura de carpetas
@@ -41,6 +43,10 @@ ecogrid-link/
 │   ├── Dockerfile
 │   ├── main.py            # FastAPI: ingesta MQTT -> MySQL + lógica de balanceo
 │   └── requirements.txt
+├── firmware/
+│   └── ecogrid_node/
+│       ├── ecogrid_node.ino   # Firmware ESP32: WiFi + INA219 + MQTT
+│       └── config.h.example   # Plantilla de config (WiFi, broker, id del nodo)
 └── test_simulator.py      # Script de prueba: publica telemetría de ejemplo por MQTT
 ```
 
@@ -86,6 +92,40 @@ Esto publica una lectura normal (2.5 W) y una de sobrecarga (60 W) en el tópico
 docker compose logs -f backend
 ```
 
+## Firmware ESP32 (Integrante 3)
+
+El sketch está en `firmware/ecogrid_node/ecogrid_node.ino`.
+
+**1. Instalar librerías** (Arduino IDE → Herramientas → Administrar bibliotecas):
+- `PubSubClient` (Nick O'Leary)
+- `ArduinoJson` (Benoit Blanchon)
+- `Adafruit INA219` (instala también la dependencia `Adafruit BusIO`)
+
+**2. Cablear el sensor INA219** (I2C, pines por defecto en la mayoría de placas ESP32):
+- `VCC` → 3.3V, `GND` → GND, `SDA` → GPIO21, `SCL` → GPIO22
+- La carga a controlar (relevador o LED) va al pin definido en `PIN_ACTUADOR` (GPIO2 por defecto).
+
+**3. Configurar:**
+```bash
+cd firmware/ecogrid_node
+cp config.h.example config.h
+```
+Edita `config.h` con tu WiFi, la IP (o host de ngrok) del broker MQTT y el `NODE_ID` de esta placa. `config.h` no se sube a GitHub.
+
+**4. Registrar el nodo** en el backend antes de la demo, para que aparezca en Grafana/phpMyAdmin:
+```bash
+curl -X POST http://localhost/api/nodos -H "Content-Type: application/json" \
+  -d '{"id_nodo": "esp32_maqueta_luminaria", "zona": "Luminaria comunitaria", "tipo_nodo": "consumo_no_prioritario", "limite_alerta_watts": 50}'
+```
+
+**5. Conexión remota (opcional):** si el ESP32 no está en la misma red que el backend, expón el broker con ngrok desde la laptop que corre `docker compose`:
+```bash
+ngrok tcp 1883
+```
+Usa el host y puerto que te da ngrok como `MQTT_BROKER` / `MQTT_PORT` en `config.h`.
+
+El backend siempre envía la orden de desconexión con `id_nodo: "esp32_maqueta_luminaria"` (la carga no prioritaria) cuando detecta sobrecarga — el firmware ignora cualquier comando de control cuyo `id_nodo` no coincida con su propio `NODE_ID`, así que varias placas pueden compartir el tópico `microrred/control` sin interferir entre sí.
+
 ## Endpoints principales de la API
 
 - `GET /api/nodos` — lista los nodos registrados.
@@ -116,4 +156,4 @@ git push -u origin main
 
 - **Integrante 1 (Backend e Infraestructura):** `docker-compose.yml`, `nginx.conf`, microservicio FastAPI de ingesta y lógica de balanceo.
 - **Integrante 2 (Datos y Visualización):** esquema SQL en phpMyAdmin, dashboards en Grafana, script simulador de 50 hogares.
-- **Integrante 3 (Telemática y Hardware):** maqueta física, firmware ESP32 (Wi-Fi/MQTT), sensores INA219 y actuadores.
+- **Integrante 3 (Telemática y Hardware):** maqueta física, firmware ESP32 (Wi-Fi/MQTT, base en `firmware/ecogrid_node/`), sensores INA219 y actuadores.
