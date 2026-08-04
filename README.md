@@ -133,9 +133,33 @@ El sketch está en `firmware/ecogrid_node/ecogrid_node.ino`.
 - `ArduinoJson` (Benoit Blanchon)
 - `Adafruit INA219` (instala también la dependencia `Adafruit BusIO`)
 
-**2. Cablear el sensor INA219** (I2C, pines por defecto en la mayoría de placas ESP32):
-- `VCC` → 3.3V, `GND` → GND, `SDA` → GPIO21, `SCL` → GPIO22
-- La carga a controlar (relevador o LED) va al pin definido en `PIN_ACTUADOR` (GPIO2 por defecto).
+**2. Armar el circuito.** Es el mismo circuito × 4 (hospital, bomberos, casa1, casa2) — solo cambia el `NODE_ID` en `config.h` de cada placa.
+
+Materiales por nodo: 1× ESP32 DevKit, 1× INA219, 1× relevador de 1 canal (5V), 1× LED + resistor 220–330Ω (la "carga"), breadboard y jumpers. La maqueta trabaja en DC bajo (5–12V, igual que `test_simulator.py`), no en 127V AC — no hace falta equipo de protección especial.
+
+Bus I2C (ESP32 ↔ INA219):
+```
+ESP32 3.3V    → INA219 VCC
+ESP32 GND     → INA219 GND
+ESP32 GPIO21  → INA219 SDA
+ESP32 GPIO22  → INA219 SCL
+```
+
+Rama de potencia — todo en serie, en este orden exacto (el INA219 va en serie con la carga, no en paralelo, para medir lo que realmente consume):
+```
+5V → INA219 (VIN+ → VIN−) → Relevador (COM → NO) → LED+resistor → GND
+```
+
+Control del relevador:
+```
+ESP32 GPIO2 (PIN_ACTUADOR) → Relevador IN
+Relevador VCC → 5V
+Relevador GND → GND
+```
+
+Orden de armado: (1) con el ESP32 desconectado de USB, cablea primero el I2C; (2) arma la rama de potencia en serie; (3) conecta el relevador; (4) revisa continuidad con multímetro — ningún GND en corto contra 5V — antes de energizar; (5) flashea el firmware y abre el Monitor Serial (115200 baudios) para confirmar que lee voltaje/corriente cada 3s (si marca 0.00 en ambos, revisa el I2C antes de seguir).
+
+> **⚠️ Polaridad del relevador:** el firmware espera que `GPIO2` en `HIGH` (estado por defecto al encender) deje la carga **conectada**, y `LOW` la **desconecte**. Los módulos de relevador varían en si activan la bobina con HIGH o con LOW, lo que decide si usas el contacto `NO` o `NC` para que "en reposo" quede conectado. Sube el firmware primero, observa si el LED enciende al arrancar, y ajusta a qué contacto está soldado el cable de carga hasta lograrlo.
 
 **3. Configurar:**
 ```bash
