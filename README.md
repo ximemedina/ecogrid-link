@@ -47,6 +47,18 @@ ecogrid-link/
 │   └── ecogrid_node/
 │       ├── ecogrid_node.ino   # Firmware ESP32: WiFi + INA219 + MQTT
 │       └── config.h.example   # Plantilla de config (WiFi, broker, id del nodo)
+├── database/
+│   ├── schema.sql             # Esquema de referencia + datos semilla (4 nodos reales)
+│   └── consultas_grafana.sql  # Queries SQL usadas por los paneles de Grafana
+├── grafana/
+│   └── provisioning/
+│       ├── datasources/mysql.yml       # Datasource MySQL auto-configurado
+│       └── dashboards/
+│           ├── provider.yml            # Registra la carpeta de dashboards
+│           └── ecogrid_dashboard.json  # Dashboard con 4 paneles listos
+├── simulator/
+│   ├── simulador_50_hogares.py # 50 hogares MQTT concurrentes (stress test)
+│   └── requirements.txt
 └── test_simulator.py      # Script de prueba: publica telemetría de ejemplo por MQTT
 ```
 
@@ -75,7 +87,7 @@ ecogrid-link/
    - API root: http://localhost/api/
    - Docs Swagger: http://localhost/api/docs
 4. Administra la base de datos en http://localhost:8080 (usuario `root`, contraseña la de `.env`).
-5. Accede a Grafana en http://localhost/dashboard/ o directamente en http://localhost:3000 (usuario/contraseña definidos en `.env`, por defecto `admin` / `grafana_admin_password`). Conéctalo a MySQL (host `mysql`, puerto `3306`, base `ecogrid_link_db`).
+5. Accede a Grafana en http://localhost/dashboard/ o directamente en http://localhost:3000 (usuario/contraseña definidos en `.env`, por defecto `admin` / `grafana_admin_password`). El datasource de MySQL y el dashboard "EcoGrid-Link — Monitoreo de Microrred" ya vienen auto-provisionados — no hace falta configurarlos a mano.
 
 ### Probar el flujo de telemetría
 
@@ -91,6 +103,26 @@ Esto publica una lectura normal (2.5 W) y una de sobrecarga (60 W) en el tópico
 ```bash
 docker compose logs -f backend
 ```
+
+## Datos y Visualización (Integrante 2)
+
+**Esquema de la base de datos:** `database/schema.sql` documenta las tablas `nodos` e `historico_mediciones` (el backend ya las crea automáticamente al arrancar). Trae datos semilla con los 4 nodos reales de la maqueta — hospital, bomberos y dos casas — para ver algo en Grafana/phpMyAdmin sin esperar al ESP32.
+
+**Dashboard de Grafana:** auto-provisionado en `grafana/provisioning/` — al levantar el stack ya existe el datasource de MySQL y el dashboard "EcoGrid-Link — Monitoreo de Microrred" con 4 paneles:
+- Potencia por nodo (serie de tiempo)
+- Potencia total actual (stat, con umbrales verde/amarillo/rojo en 30W/50W)
+- Consumo por zona en la última hora (barras)
+- Última lectura por nodo (tabla)
+
+Las consultas SQL de cada panel están documentadas en `database/consultas_grafana.sql` por si quieres editarlas o agregar paneles nuevos desde la UI de Grafana.
+
+**Simulador de 50 hogares** (para estresar la base de datos con carga concurrente, distinto de los 4 nodos físicos de la maqueta):
+```bash
+cd simulator
+pip install -r requirements.txt
+python simulador_50_hogares.py --hogares 50 --intervalo 5
+```
+Cada hogar virtual (`hogar_virtual_01` … `hogar_virtual_50`) corre en su propio hilo con su propia conexión MQTT, se registra solo vía `POST /api/nodos`, y ocasionalmente (3% de las lecturas) simula un pico de sobrecarga para ejercitar la lógica de balanceo. Detén con `Ctrl+C`.
 
 ## Firmware ESP32 (Integrante 3)
 
@@ -112,11 +144,12 @@ cp config.h.example config.h
 ```
 Edita `config.h` con tu WiFi, la IP (o host de ngrok) del broker MQTT y el `NODE_ID` de esta placa. `config.h` no se sube a GitHub.
 
-**4. Registrar el nodo** en el backend antes de la demo, para que aparezca en Grafana/phpMyAdmin:
+**4. Registrar el nodo** en el backend antes de la demo, para que aparezca en Grafana/phpMyAdmin. La maqueta tiene 4 nodos físicos (`database/schema.sql` ya trae estos 4 como semilla); registra el que corresponda a esta placa, por ejemplo:
 ```bash
 curl -X POST http://localhost/api/nodos -H "Content-Type: application/json" \
-  -d '{"id_nodo": "esp32_maqueta_luminaria", "zona": "Luminaria comunitaria", "tipo_nodo": "consumo_no_prioritario", "limite_alerta_watts": 50}'
+  -d '{"id_nodo": "esp32_maqueta_casa1", "zona": "Casa 1", "tipo_nodo": "consumo_no_prioritario", "limite_alerta_watts": 50}'
 ```
+Hospital y bomberos deben registrarse como `"tipo_nodo": "consumo_prioritario"` — el backend nunca les envía la orden de desconexión, sin importar cuánta potencia reporten.
 
 **5. Conexión remota (opcional):** si el ESP32 no está en la misma red que el backend, expón el broker con ngrok desde la laptop que corre `docker compose`:
 ```bash
@@ -124,7 +157,7 @@ ngrok tcp 1883
 ```
 Usa el host y puerto que te da ngrok como `MQTT_BROKER` / `MQTT_PORT` en `config.h`.
 
-El backend siempre envía la orden de desconexión con `id_nodo: "esp32_maqueta_luminaria"` (la carga no prioritaria) cuando detecta sobrecarga — el firmware ignora cualquier comando de control cuyo `id_nodo` no coincida con su propio `NODE_ID`, así que varias placas pueden compartir el tópico `microrred/control` sin interferir entre sí.
+Cuando el backend detecta sobrecarga, envía la orden de desconexión al `id_nodo` que la reportó — pero solo si ese nodo está registrado como `consumo_no_prioritario` (hospital y bomberos, al ser `consumo_prioritario`, nunca se desconectan). El firmware ignora cualquier comando de control cuyo `id_nodo` no coincida con su propio `NODE_ID`, así que las 4 placas pueden compartir el tópico `microrred/control` sin interferir entre sí.
 
 ## Endpoints principales de la API
 
@@ -155,5 +188,5 @@ git push -u origin main
 ## Roles del equipo
 
 - **Integrante 1 (Backend e Infraestructura):** `docker-compose.yml`, `nginx.conf`, microservicio FastAPI de ingesta y lógica de balanceo.
-- **Integrante 2 (Datos y Visualización):** esquema SQL en phpMyAdmin, dashboards en Grafana, script simulador de 50 hogares.
+- **Integrante 2 (Datos y Visualización):** esquema SQL (`database/schema.sql`), dashboard de Grafana auto-provisionado (`grafana/provisioning/`), script simulador de 50 hogares (`simulator/`).
 - **Integrante 3 (Telemática y Hardware):** maqueta física, firmware ESP32 (Wi-Fi/MQTT, base en `firmware/ecogrid_node/`), sensores INA219 y actuadores.

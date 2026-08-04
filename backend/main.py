@@ -109,15 +109,25 @@ async def listen_mqtt_telemetry():
                         db.commit()
                         db.close()
                         
-                        # Lógica de Balanceo: si sobrepasa el límite, se emite una orden de desconexión
+                        # Lógica de Balanceo: si sobrepasa el límite, se emite una orden de desconexión.
+                        # Las cargas prioritarias (hospital, bomberos) nunca se desconectan; solo
+                        # se corta el nodo que reportó la sobrecarga si es consumo_no_prioritario.
                         if potencia_watts > UMBRAL_SOBRECARGA_WATTS:
-                            logger.warning(f"¡SOBRECARGA DETECTADA EN {id_nodo}! Potencia: {potencia_watts}W")
-                            control_command = {
-                                "id_nodo": "esp32_maqueta_luminaria",
-                                "accion": "desconectar"
-                            }
-                            await client.publish(TOPIC_CONTROL, payload=json.dumps(control_command))
-                            logger.info(f"Comando de emergencia enviado al tópico {TOPIC_CONTROL}")
+                            db = SessionLocal()
+                            nodo_info = db.get(Nodo, id_nodo)
+                            db.close()
+                            es_prioritario = nodo_info is not None and nodo_info.tipo_nodo == "consumo_prioritario"
+
+                            if es_prioritario:
+                                logger.warning(f"¡SOBRECARGA EN CARGA PRIORITARIA {id_nodo}! Potencia: {potencia_watts}W — no se desconecta (carga crítica)")
+                            else:
+                                logger.warning(f"¡SOBRECARGA DETECTADA EN {id_nodo}! Potencia: {potencia_watts}W")
+                                control_command = {
+                                    "id_nodo": id_nodo,
+                                    "accion": "desconectar"
+                                }
+                                await client.publish(TOPIC_CONTROL, payload=json.dumps(control_command))
+                                logger.info(f"Comando de emergencia enviado al tópico {TOPIC_CONTROL}")
                     except Exception as e:
                         logger.error(f"Error procesando mensaje MQTT: {e}")
         except Exception as conn_error:
