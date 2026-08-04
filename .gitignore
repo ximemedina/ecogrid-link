@@ -1,0 +1,6 @@
+mysql_data/
+mosquitto_data/
+mosquitto_log/
+__pycache__/
+*.pyc
+.env
