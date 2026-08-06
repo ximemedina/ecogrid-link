@@ -130,6 +130,9 @@ void setup() {
   if (!ina219.begin()) {
     Serial.println("No se encontro el sensor INA219. Revisa el cableado I2C (SDA/SCL).");
   }
+  // Fija la calibración explícitamente: en algunas versiones de la librería,
+  // begin() no la deja bien establecida y getCurrent_mA() devuelve NaN.
+  ina219.setCalibration_32V_2A();
 
   conectarWiFi();
   mqttClient.setServer(MQTT_BROKER, MQTT_PORT);

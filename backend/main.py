@@ -89,8 +89,8 @@ async def listen_mqtt_telemetry():
                     try:
                         payload_data = json.loads(message.payload.decode())
                         id_nodo = payload_data.get("id_nodo")
-                        voltaje = float(payload_data.get("voltaje", 0.0))
-                        corriente = float(payload_data.get("corriente", 0.0))
+                        voltaje = float(payload_data.get("voltaje") or 0.0)
+                        corriente = float(payload_data.get("corriente") or 0.0)
                         
                         # Cálculo del consumo real en el Backend (P = V * I)
                         potencia_watts = voltaje * corriente
