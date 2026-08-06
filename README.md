@@ -130,16 +130,24 @@ Cada hogar virtual (`hogar_virtual_01` … `hogar_virtual_50`) corre en su propi
 
 El sketch está en `firmware/ecogrid_node/ecogrid_node.ino`.
 
+**Es un solo circuito, no cuatro.** Un único ESP32 lleva **un solo sensor INA219** (antes de la división) y un relevador de **2 canales**, agrupados por prioridad — el circuito ya está armado así y no se puede modificar:
+- **Canal 1** (3 LEDs): zona **prioritaria** — `hospital` + `bomberos` comparten este canal.
+- **Canal 2** (3 LEDs): zona **no prioritaria** — `casa1` + `casa2` comparten este canal.
+
+Como el INA219 está antes de la división en canales, mide la corriente **total** del circuito (las 2 ramas juntas), no una lectura por canal — así que los **4 nodos** (`hospital`, `bomberos`, `casa1`, `casa2`) reportan la **misma lectura** de voltaje/corriente en cada ciclo (el firmware la publica una vez por cada `id_nodo`). Es una limitación física del circuito (un sensor para 2 ramas), no del software.
+
+El control sí es independiente por canal: cada relevador se activa por separado. Una orden de desconexión para cualquiera de los 2 nodos de un canal apaga **el canal completo** (los 2 LEDs de ese grupo), no uno solo. En la práctica el canal 1 nunca se desconecta, porque el backend solo envía la orden de corte a nodos `consumo_no_prioritario`, y hospital/bomberos son `consumo_prioritario`.
+
 **1. Instalar librerías** (Arduino IDE → Herramientas → Administrar bibliotecas):
 - `PubSubClient` (Nick O'Leary)
 - `ArduinoJson` (Benoit Blanchon)
 - `Adafruit INA219` (instala también la dependencia `Adafruit BusIO`)
 
-**2. Armar el circuito.** Es el mismo circuito × 4 (hospital, bomberos, casa1, casa2) — solo cambia el `NODE_ID` en `config.h` de cada placa.
+**2. Armar el circuito.**
 
-Materiales por nodo: 1× ESP32 DevKit, 1× INA219, 1× relevador de 1 canal (5V), 1× LED + resistor 220–330Ω (la "carga"), breadboard y jumpers. La maqueta trabaja en DC bajo (5–12V, igual que `test_simulator.py`), no en 127V AC — no hace falta equipo de protección especial.
+Materiales: 1× ESP32 DevKit, 1× INA219 (único, compartido), 1× módulo relevador de 2 canales (5V), 6× LED (3 por canal) + resistor 220–330Ω cada uno, breadboard y jumpers. La maqueta trabaja en DC bajo (5–12V, igual que `test_simulator.py`), no en 127V AC — no hace falta equipo de protección especial.
 
-Bus I2C (ESP32 ↔ INA219):
+Bus I2C (ESP32 ↔ INA219, un solo sensor):
 ```
 ESP32 3.3V    → INA219 VCC
 ESP32 GND     → INA219 GND
@@ -147,30 +155,34 @@ ESP32 GPIO21  → INA219 SDA
 ESP32 GPIO22  → INA219 SCL
 ```
 
-Rama de potencia — todo en serie, en este orden exacto (el INA219 va en serie con la carga, no en paralelo, para medir lo que realmente consume):
+Rama de potencia — el INA219 va en serie **antes** de la división en canales (mide la corriente total, no por canal), y de ahí se reparte a los 2 relevadores:
 ```
-5V → INA219 (VIN+ → VIN−) → Relevador (COM → NO) → LED+resistor → GND
+5V → INA219 (VIN+ → VIN−) → se divide en:
+       ├─ Relevador CH1 (COM → NO) → 3 LEDs en paralelo (c/u con su resistor) → GND   [hospital + bomberos]
+       └─ Relevador CH2 (COM → NO) → 3 LEDs en paralelo (c/u con su resistor) → GND   [casa1 + casa2]
 ```
+Los 3 LEDs de cada canal van en **paralelo** (cada uno con su propio resistor) para que si uno se funde no apague a los otros dos.
 
-Control del relevador:
+Control de los relevadores:
 ```
-ESP32 GPIO2 (PIN_ACTUADOR) → Relevador IN
+ESP32 GPIO2 (PIN_RELAY_CH1) → Relevador IN1
+ESP32 GPIO4 (PIN_RELAY_CH2) → Relevador IN2
 Relevador VCC → 5V
 Relevador GND → GND
 ```
 
-Orden de armado: (1) con el ESP32 desconectado de USB, cablea primero el I2C; (2) arma la rama de potencia en serie; (3) conecta el relevador; (4) revisa continuidad con multímetro — ningún GND en corto contra 5V — antes de energizar; (5) flashea el firmware y abre el Monitor Serial (115200 baudios) para confirmar que lee voltaje/corriente cada 3s (si marca 0.00 en ambos, revisa el I2C antes de seguir).
+Orden de armado: (1) con el ESP32 desconectado de USB, cablea primero el I2C del INA219; (2) arma la rama de potencia en serie hasta el punto donde se divide en los 2 canales; (3) conecta los dos canales del relevador; (4) revisa continuidad con multímetro — ningún GND en corto contra 5V — antes de energizar; (5) flashea el firmware y abre el Monitor Serial (115200 baudios) para confirmar que lee voltaje/corriente cada 3s y la publica para los 4 nodos (si marca 0.00, revisa el cableado I2C antes de seguir).
 
-> **⚠️ Polaridad del relevador:** el firmware espera que `GPIO2` en `HIGH` (estado por defecto al encender) deje la carga **conectada**, y `LOW` la **desconecte**. Los módulos de relevador varían en si activan la bobina con HIGH o con LOW, lo que decide si usas el contacto `NO` o `NC` para que "en reposo" quede conectado. Sube el firmware primero, observa si el LED enciende al arrancar, y ajusta a qué contacto está soldado el cable de carga hasta lograrlo.
+> **⚠️ Polaridad del relevador:** el firmware espera que cada `PIN_RELAY_CHx` en `HIGH` (estado por defecto al encender) deje esa carga **conectada**, y `LOW` la **desconecte**. Los módulos de relevador varían en si activan la bobina con HIGH o con LOW, lo que decide a qué contacto (`NO` o `NC`) sueldas el cable de carga para que "en reposo" quede conectado. Sube el firmware primero, observa si los LEDs encienden al arrancar, y ajusta por canal hasta lograrlo.
 
 **3. Configurar:**
 ```bash
 cd firmware/ecogrid_node
 cp config.h.example config.h
 ```
-Edita `config.h` con tu WiFi, la IP (o host de ngrok) del broker MQTT y el `NODE_ID` de esta placa. `config.h` no se sube a GitHub.
+Edita `config.h` con tu WiFi y la IP (o host de ngrok) del broker MQTT. Los `NODE_ID_CH1_A/B` y `NODE_ID_CH2_A/B` ya vienen como `hospital`/`bomberos` (canal 1) y `casa1`/`casa2` (canal 2) — no hace falta tocarlos salvo que cambies qué canal representa qué zona. `config.h` no se sube a GitHub.
 
-**4. Registrar el nodo** en el backend antes de la demo, para que aparezca en Grafana/phpMyAdmin. La maqueta tiene 4 nodos físicos (`database/schema.sql` ya trae estos 4 como semilla); registra el que corresponda a esta placa, por ejemplo:
+**4. Registrar los nodos** en el backend antes de la demo, para que aparezcan en Grafana/phpMyAdmin (`database/schema.sql` ya trae los 4 como semilla, incluyendo `casa1`/`casa2`):
 ```bash
 curl -X POST http://localhost/api/nodos -H "Content-Type: application/json" \
   -d '{"id_nodo": "casa1", "zona": "Casa 1", "tipo_nodo": "consumo_no_prioritario", "limite_alerta_watts": 50}'
@@ -183,7 +195,7 @@ ngrok tcp 1883
 ```
 Usa el host y puerto que te da ngrok como `MQTT_BROKER` / `MQTT_PORT` en `config.h`.
 
-Cuando el backend detecta sobrecarga, envía la orden de desconexión al `id_nodo` que la reportó — pero solo si ese nodo está registrado como `consumo_no_prioritario` (hospital y bomberos, al ser `consumo_prioritario`, nunca se desconectan). El firmware ignora cualquier comando de control cuyo `id_nodo` no coincida con su propio `NODE_ID`, así que las 4 placas pueden compartir el tópico `microrred/control` sin interferir entre sí.
+Cuando el backend detecta sobrecarga, envía la orden de desconexión al `id_nodo` que la reportó — pero solo si ese nodo está registrado como `consumo_no_prioritario`. El firmware compara el `id_nodo` del comando contra los 2 nodos de cada canal y actúa sobre el canal que coincide; como `casa1` y `casa2` comparten el canal 2, desconectar una desconecta también a la otra (son la misma rama física). `hospital` y `bomberos` comparten el canal 1, pero como ambos son `consumo_prioritario` el backend nunca les manda esa orden.
 
 ## Endpoints principales de la API
 

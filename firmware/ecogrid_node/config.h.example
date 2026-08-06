@@ -14,18 +14,30 @@
 #define MQTT_BROKER "192.168.1.100"
 #define MQTT_PORT 1883
 
-// --- Identidad de este nodo ---
-// Debe coincidir con el id_nodo que se registre en la tabla `nodos`
-// (vía POST /api/nodos o phpMyAdmin). La maqueta tiene 4 nodos físicos —
-// usa el que corresponda a esta placa:
-//   "hospital"  (consumo_prioritario, nunca se desconecta)
-//   "bomberos"  (consumo_prioritario, nunca se desconecta)
-//   "casa1"     (consumo_no_prioritario, se desconecta si hay sobrecarga)
-//   "casa2"     (consumo_no_prioritario, se desconecta si hay sobrecarga)
-// El backend solo envía la orden de desconexión al nodo que reportó la
-// sobrecarga, y únicamente si su tipo_nodo es consumo_no_prioritario.
-#define NODE_ID "casa1"
+// --- Identidad de cada canal ---
+// El circuito físico ya está armado con 2 canales de relevador agrupados
+// por prioridad (no es posible separarlos en LEDs independientes por nodo):
+//
+// Canal 1 -> zona PRIORITARIA (nunca se desconecta)
+#define NODE_ID_CH1_A "hospital"
+#define NODE_ID_CH1_B "bomberos"
+//
+// Canal 2 -> zona NO PRIORITARIA (se desconecta sola si hay sobrecarga)
+#define NODE_ID_CH2_A "casa1"
+#define NODE_ID_CH2_B "casa2"
+//
+// Los 2 canales comparten un único sensor INA219 (va antes de la división
+// en ramas), así que mide la corriente TOTAL del circuito, no por canal.
+// Los 4 nodos (hospital, bomberos, casa1, casa2) reportan la misma lectura
+// de voltaje/corriente en cada ciclo. Una orden de corte para cualquiera de
+// los 2 nodos de un canal apaga el canal completo (los 2 LEDs de ese grupo).
 
 // --- Hardware ---
-#define PIN_ACTUADOR 2   // Pin del relevador/LED que representa la carga controlada
-#define INTERVALO_ENVIO_MS 3000 // Cada cuánto se publica una lectura de telemetría
+// Pines de control (IN) del relevador de 2 canales. El circuito es:
+// 5V -> INA219 (único) -> se divide en Relevador CH1 (COM/NO) -> 3 LEDs
+// y Relevador CH2 (COM/NO) -> 3 LEDs, cada LED en paralelo con su propio
+// resistor 220-330 Ohm, todo a GND.
+#define PIN_RELAY_CH1 2
+#define PIN_RELAY_CH2 4
+
+#define INTERVALO_ENVIO_MS 3000 // Cada cuánto se publica una lectura de telemetría (ambos canales)
