@@ -93,11 +93,11 @@ void alRecibirMensaje(char* topic, byte* payload, unsigned int length) {
     if (!canalTieneNodo(canales[i], idNodoDestino)) continue; // el comando no es para este canal
 
     if (strcmp(accion, "desconectar") == 0) {
-      digitalWrite(canales[i].pinRelevador, LOW);
+      digitalWrite(canales[i].pinRelevador, HIGH); // este módulo es activo en LOW: HIGH = apagado
       Serial.printf("Canal %d DESCONECTADO (pedido por %s, afecta a %s y %s)\n",
                     i + 1, idNodoDestino, canales[i].nodeIds[0], canales[i].nodeIds[1]);
     } else if (strcmp(accion, "conectar") == 0) {
-      digitalWrite(canales[i].pinRelevador, HIGH);
+      digitalWrite(canales[i].pinRelevador, LOW); // LOW = encendido
       Serial.printf("Canal %d RECONECTADO (pedido por %s, afecta a %s y %s)\n",
                     i + 1, idNodoDestino, canales[i].nodeIds[0], canales[i].nodeIds[1]);
     }
@@ -124,7 +124,7 @@ void setup() {
 
   for (int i = 0; i < NUM_CANALES; i++) {
     pinMode(canales[i].pinRelevador, OUTPUT);
-    digitalWrite(canales[i].pinRelevador, HIGH); // carga conectada por defecto
+    digitalWrite(canales[i].pinRelevador, LOW); // módulo activo en LOW: carga conectada por defecto
   }
 
   if (!ina219.begin()) {

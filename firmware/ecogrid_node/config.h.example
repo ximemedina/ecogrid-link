@@ -37,7 +37,9 @@
 // 5V -> INA219 (único) -> se divide en Relevador CH1 (COM/NO) -> 3 LEDs
 // y Relevador CH2 (COM/NO) -> 3 LEDs, cada LED en paralelo con su propio
 // resistor 220-330 Ohm, todo a GND.
-#define PIN_RELAY_CH1 2
-#define PIN_RELAY_CH2 4
+// Este módulo de relevador es activo en LOW (LOW = encendido/conectado,
+// HIGH = apagado/desconectado) — el firmware ya lo maneja así.
+#define PIN_RELAY_CH1 18
+#define PIN_RELAY_CH2 19
 
 #define INTERVALO_ENVIO_MS 3000 // Cada cuánto se publica una lectura de telemetría (ambos canales)

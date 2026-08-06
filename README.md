@@ -165,15 +165,15 @@ Los 3 LEDs de cada canal van en **paralelo** (cada uno con su propio resistor) p
 
 Control de los relevadores:
 ```
-ESP32 GPIO2 (PIN_RELAY_CH1) → Relevador IN1
-ESP32 GPIO4 (PIN_RELAY_CH2) → Relevador IN2
+ESP32 GPIO18 (PIN_RELAY_CH1) → Relevador IN1
+ESP32 GPIO19 (PIN_RELAY_CH2) → Relevador IN2
 Relevador VCC → 5V
 Relevador GND → GND
 ```
 
 Orden de armado: (1) con el ESP32 desconectado de USB, cablea primero el I2C del INA219; (2) arma la rama de potencia en serie hasta el punto donde se divide en los 2 canales; (3) conecta los dos canales del relevador; (4) revisa continuidad con multímetro — ningún GND en corto contra 5V — antes de energizar; (5) flashea el firmware y abre el Monitor Serial (115200 baudios) para confirmar que lee voltaje/corriente cada 3s y la publica para los 4 nodos (si marca 0.00, revisa el cableado I2C antes de seguir).
 
-> **⚠️ Polaridad del relevador:** el firmware espera que cada `PIN_RELAY_CHx` en `HIGH` (estado por defecto al encender) deje esa carga **conectada**, y `LOW` la **desconecte**. Los módulos de relevador varían en si activan la bobina con HIGH o con LOW, lo que decide a qué contacto (`NO` o `NC`) sueldas el cable de carga para que "en reposo" quede conectado. Sube el firmware primero, observa si los LEDs encienden al arrancar, y ajusta por canal hasta lograrlo.
+> **Polaridad del relevador:** este módulo es **activo en LOW** — `LOW` en `PIN_RELAY_CHx` deja la carga **conectada**, y `HIGH` la **desconecta**. Ya está así en el firmware (confirmado con hardware real). Si en algún momento cambian de módulo de relevador y las cargas quedan encendidas/apagadas al revés de lo esperado, es porque el módulo nuevo activa la bobina con la polaridad contraria — hay que invertir `HIGH`/`LOW` en `alRecibirMensaje()` y en el estado inicial de `setup()`.
 
 **3. Configurar:**
 ```bash
