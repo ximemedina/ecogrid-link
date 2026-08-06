@@ -5,19 +5,19 @@
   "tags": ["ecogrid-link"],
   "timezone": "browser",
   "schemaVersion": 39,
-  "version": 1,
+  "version": 2,
   "refresh": "5s",
   "time": { "from": "now-1h", "to": "now" },
   "panels": [
     {
       "id": 1,
       "type": "timeseries",
-      "title": "Potencia por nodo (W)",
+      "title": "Voltaje por nodo (V)",
       "gridPos": { "h": 9, "w": 24, "x": 0, "y": 0 },
       "datasource": { "type": "mysql", "uid": "ecogrid_mysql" },
       "fieldConfig": {
         "defaults": {
-          "unit": "watt",
+          "unit": "volt",
           "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 10 }
         },
         "overrides": []
@@ -28,27 +28,19 @@
           "datasource": { "type": "mysql", "uid": "ecogrid_mysql" },
           "format": "time_series",
           "rawQuery": true,
-          "rawSql": "SELECT fecha_hora AS \"time\", potencia_watts AS \"value\", id_nodo AS \"metric\" FROM historico_mediciones WHERE $__timeFilter(fecha_hora) ORDER BY fecha_hora ASC"
+          "rawSql": "SELECT fecha_hora AS \"time\", voltaje AS \"value\", id_nodo AS \"metric\" FROM historico_mediciones WHERE $__timeFilter(fecha_hora) ORDER BY fecha_hora ASC"
         }
       ]
     },
     {
       "id": 2,
       "type": "stat",
-      "title": "Potencia total actual (W)",
+      "title": "Voltaje promedio actual (V)",
       "gridPos": { "h": 6, "w": 8, "x": 0, "y": 9 },
       "datasource": { "type": "mysql", "uid": "ecogrid_mysql" },
       "fieldConfig": {
         "defaults": {
-          "unit": "watt",
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              { "color": "green", "value": null },
-              { "color": "yellow", "value": 30 },
-              { "color": "red", "value": 50 }
-            ]
-          }
+          "unit": "volt"
         },
         "overrides": []
       },
@@ -62,27 +54,19 @@
           "datasource": { "type": "mysql", "uid": "ecogrid_mysql" },
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT COALESCE(SUM(h.potencia_watts), 0) AS \"Potencia Total\" FROM historico_mediciones h INNER JOIN (SELECT id_nodo, MAX(fecha_hora) AS ultima FROM historico_mediciones GROUP BY id_nodo) m ON h.id_nodo = m.id_nodo AND h.fecha_hora = m.ultima"
+          "rawSql": "SELECT COALESCE(AVG(h.voltaje), 0) AS \"Voltaje Promedio\" FROM historico_mediciones h INNER JOIN (SELECT id_nodo, MAX(fecha_hora) AS ultima FROM historico_mediciones GROUP BY id_nodo) m ON h.id_nodo = m.id_nodo AND h.fecha_hora = m.ultima"
         }
       ]
     },
     {
       "id": 3,
       "type": "bargauge",
-      "title": "Consumo por zona (última hora)",
+      "title": "Voltaje promedio por zona (última hora)",
       "gridPos": { "h": 6, "w": 16, "x": 8, "y": 9 },
       "datasource": { "type": "mysql", "uid": "ecogrid_mysql" },
       "fieldConfig": {
         "defaults": {
-          "unit": "watt",
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              { "color": "green", "value": null },
-              { "color": "yellow", "value": 30 },
-              { "color": "red", "value": 50 }
-            ]
-          }
+          "unit": "volt"
         },
         "overrides": []
       },
@@ -92,7 +76,7 @@
           "datasource": { "type": "mysql", "uid": "ecogrid_mysql" },
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT COALESCE(n.zona, 'Sin registrar') AS metric, SUM(h.potencia_watts) AS value FROM historico_mediciones h LEFT JOIN nodos n ON n.id_nodo = h.id_nodo WHERE h.fecha_hora >= NOW() - INTERVAL 1 HOUR GROUP BY metric ORDER BY value DESC"
+          "rawSql": "SELECT COALESCE(n.zona, 'Sin registrar') AS metric, AVG(h.voltaje) AS value FROM historico_mediciones h LEFT JOIN nodos n ON n.id_nodo = h.id_nodo WHERE h.fecha_hora >= NOW() - INTERVAL 1 HOUR GROUP BY metric ORDER BY value DESC"
         }
       ]
     },
@@ -109,7 +93,7 @@
           "datasource": { "type": "mysql", "uid": "ecogrid_mysql" },
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT h.id_nodo, n.zona, n.tipo_nodo, h.voltaje, h.corriente, h.potencia_watts, h.fecha_hora FROM historico_mediciones h INNER JOIN (SELECT id_nodo, MAX(fecha_hora) AS ultima FROM historico_mediciones GROUP BY id_nodo) m ON h.id_nodo = m.id_nodo AND h.fecha_hora = m.ultima LEFT JOIN nodos n ON n.id_nodo = h.id_nodo ORDER BY h.potencia_watts DESC"
+          "rawSql": "SELECT h.id_nodo, n.zona, n.tipo_nodo, h.voltaje, h.fecha_hora FROM historico_mediciones h INNER JOIN (SELECT id_nodo, MAX(fecha_hora) AS ultima FROM historico_mediciones GROUP BY id_nodo) m ON h.id_nodo = m.id_nodo AND h.fecha_hora = m.ultima LEFT JOIN nodos n ON n.id_nodo = h.id_nodo ORDER BY h.id_nodo ASC"
         }
       ]
     }
