@@ -155,7 +155,9 @@ void loop() {
     // Una sola lectura para todo el circuito: el INA219 está antes de la
     // división en canales, así que mide la corriente total de ambas ramas.
     float voltaje = ina219.getBusVoltage_V();
+    float shunt_mV = ina219.getShuntVoltage_mV(); // lectura cruda, sin pasar por calibración (diagnóstico)
     float corriente = ina219.getCurrent_mA() / 1000.0; // mA -> A
+    Serial.printf("[DEBUG] ShuntVoltage=%.4f mV\n", shunt_mV);
 
     for (int i = 0; i < NUM_CANALES; i++) {
       for (int j = 0; j < NODOS_POR_CANAL; j++) {
