@@ -155,9 +155,15 @@ void loop() {
     // Una sola lectura para todo el circuito: el INA219 está antes de la
     // división en canales, así que mide la corriente total de ambas ramas.
     float voltaje = ina219.getBusVoltage_V();
-    float shunt_mV = ina219.getShuntVoltage_mV(); // lectura cruda, sin pasar por calibración (diagnóstico)
-    float corriente = ina219.getCurrent_mA() / 1000.0; // mA -> A
-    Serial.printf("[DEBUG] ShuntVoltage=%.4f mV\n", shunt_mV);
+    float shunt_mV = ina219.getShuntVoltage_mV();
+    // Corriente calculada directo del voltaje del shunt (Ley de Ohm), sin
+    // depender del registro de calibración interno del chip (getCurrent_mA()
+    // devolvía 0 aunque el shunt sí tenía una lectura real). Ajusta
+    // R_SHUNT_OHMS si tu placa trae impreso un valor distinto de 0.1 ohm
+    // (revisa la resistencia junto a los terminales VIN+/VIN-, suele decir
+    // "R100" = 0.1 ohm).
+    const float R_SHUNT_OHMS = 0.1;
+    float corriente = (shunt_mV / 1000.0) / R_SHUNT_OHMS; // A
 
     for (int i = 0; i < NUM_CANALES; i++) {
       for (int j = 0; j < NODOS_POR_CANAL; j++) {
