@@ -5,3 +5,4 @@ __pycache__/
 *.pyc
 .env
 firmware/**/config.h
+DOCUMENTACION_PROYECTO.md
